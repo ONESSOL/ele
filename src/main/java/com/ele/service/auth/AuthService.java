@@ -1,11 +1,12 @@
 package com.ele.service.auth;
 
 import com.ele.config.SecurityUtil;
+import com.ele.domain.cart.Cart;
 import com.ele.domain.member.Member;
-import com.ele.domain.member.Role;
 import com.ele.exception.member.UsernameExistException;
 import com.ele.jwt.AuthTokenGenerator;
 import com.ele.jwt.AuthTokens;
+import com.ele.repository.cart.CartRepository;
 import com.ele.repository.member.MemberRepository;
 import com.ele.request.member.LoginRequest;
 import com.ele.request.member.MemberCreateRequest;
@@ -33,6 +34,7 @@ public class AuthService {
     private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final AuthTokenGenerator authTokenGenerator;
     private final RedisService redisService;
+    private final CartRepository cartRepository;
 
     @Transactional
     public MemberCreateResponse saveMember(MemberCreateRequest request) {
@@ -50,6 +52,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .address(request.getAddress())
                 .role(USER)
+                .cart(cartRepository.save(Cart.createCart()))
                 .build());
         return MemberCreateResponse.toSave(member);
     }
@@ -68,7 +71,7 @@ public class AuthService {
     @Transactional
     public void logout(String accessToken, String refreshToken) {
 
-        if(redisService.checkValues(refreshToken)) {
+        if (redisService.checkValues(refreshToken)) {
             redisService.deleteValues(String.valueOf(SecurityUtil.CurrentMemberId()));
             redisService.setValues(accessToken, "logout", Duration.ofMillis(AuthTokenGenerator.ACCESS_TOKEN_EXPIRE_TIME));
         }

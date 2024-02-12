@@ -3,6 +3,10 @@ package com.ele.config;
 import com.ele.jwt.JwtAccessDeniedHandler;
 import com.ele.jwt.JwtAuthenticationEntryPoint;
 import com.ele.jwt.JwtTokenProvider;
+import com.ele.oauth.handler.OAuth2LoginFailureHandler;
+import com.ele.oauth.handler.OAuth2LoginSuccessHandler;
+import com.ele.repository.member.MemberRepository;
+import com.ele.service.oauth.CustomOAuth2UserService;
 import com.ele.service.redis.RedisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -27,12 +31,14 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisService redisService;
+    private final MemberRepository memberRepository;
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         return web -> web.ignoring()
                 .requestMatchers("favicon.ico")
-                .requestMatchers("/error");
+                .requestMatchers("/error")
+                .requestMatchers("/index.html");
     }
 
     @Bean
@@ -41,8 +47,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers("/auth/save").permitAll();
                     auth.requestMatchers("/auth/login").permitAll();
+                    auth.requestMatchers("/oauth2/login").permitAll();
                     auth.requestMatchers("/").permitAll();
                     auth.anyRequest().authenticated();
+                })
+                .oauth2Login(oauth -> {
+                    oauth.successHandler(new OAuth2LoginSuccessHandler(memberRepository, jwtTokenProvider, redisService));
+                    oauth.failureHandler(new OAuth2LoginFailureHandler());
+                    oauth.userInfoEndpoint(config -> config.userService(new CustomOAuth2UserService(memberRepository)));
                 })
                 .cors(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
